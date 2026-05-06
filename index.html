@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Conferência de Grupo do WhatsApp</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+    :root {
+      --green: #25D366;
+      --green-bright: #2EFF7B;
+      --green-dark: #128C4E;
+      --green-glow: rgba(37, 211, 102, 0.4);
+      --red: #ff5d6c;
+      --red-glow: rgba(255, 93, 108, 0.35);
+      --amber: #ffb400;
+      --bg: #0a0a0a;
+      --surface: #111111;
+      --surface2: #1a1a1a;
+      --surface3: #222222;
+      --border: rgba(37, 211, 102, 0.15);
+      --border-soft: rgba(255,255,255,0.06);
+      --text: #f0f0f0;
+      --text-muted: #888;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* ─── CANVAS BACKGROUND ─── */
+    #bg-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* ─── FLOATING WA ICONS ─── */
+    .floating-icons {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    .wa-icon {
+      position: absolute;
+      opacity: 0;
+      filter: drop-shadow(0 0 12px var(--green));
+    }
+    .wa-icon svg { width: 100%; height: 100%; }
+
+    @keyframes floatUp {
+      0%   { transform: translateY(110vh) rotate(0deg) scale(0.8); opacity: 0; }
+      10%  { opacity: 0.6; }
+      90%  { opacity: 0.4; }
+      100% { transform: translateY(-15vh) rotate(360deg) scale(1.1); opacity: 0; }
+    }
+    @keyframes floatDrift {
+      0%   { transform: translate(0, 0) rotate(0deg) scale(0.85); opacity: 0; }
+      15%  { opacity: 0.5; }
+      50%  { transform: translate(var(--drift-x, 20px), -40px) rotate(180deg) scale(1); }
+      85%  { opacity: 0.35; }
+      100% { transform: translate(calc(var(--drift-x, 20px) * 2), -80px) rotate(360deg) scale(0.85); opacity: 0; }
+    }
+    @keyframes floatPulse {
+      0%   { transform: translateY(0) scale(0.9); opacity: 0; }
+      20%  { opacity: 0.45; }
+      50%  { transform: translateY(-20px) scale(1.05); opacity: 0.55; }
+      80%  { opacity: 0.35; }
+      100% { transform: translateY(-45px) scale(0.9); opacity: 0; }
+    }
+
+    /* ─── LAYOUT ─── */
+    .wrapper {
+      position: relative;
+      z-index: 10;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 48px 20px 60px;
+    }
+
+    /* ─── HEADER ─── */
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .logo-icon {
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(135deg, var(--green), var(--green-dark));
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 30px var(--green-glow), 0 0 60px rgba(37,211,102,0.2);
+      animation: pulse 3s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 30px var(--green-glow), 0 0 60px rgba(37,211,102,0.2); }
+      50%       { box-shadow: 0 0 50px rgba(37,211,102,0.7), 0 0 100px rgba(37,211,102,0.3); }
+    }
+    .logo-text {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .logo-text span {
+      color: var(--green-bright);
+      text-shadow: 0 0 20px var(--green);
+    }
+    .tagline {
+      font-size: 1rem;
+      color: var(--text-muted);
+      font-weight: 400;
+      letter-spacing: 0.3px;
+    }
+
+    /* ─── CARD WRAPPER (racing border) ─── */
+    .card-wrapper {
+      width: 100%;
+      max-width: 1080px;
+      border-radius: 26px;
+      padding: 2px;
+      position: relative;
+      overflow: hidden;
+    }
+    .card-wrapper::before {
+      content: '';
+      position: absolute;
+      width: 200%;
+      height: 200%;
+      top: -50%;
+      left: -50%;
+      background: conic-gradient(
+        from 0deg at 50% 50%,
+        transparent 0deg,
+        var(--green-dark) 15deg,
+        var(--green) 30deg,
+        var(--green-bright) 50deg,
+        var(--green) 70deg,
+        var(--green-dark) 85deg,
+        transparent 100deg,
+        transparent 360deg
+      );
+      animation: spin-border 4s linear infinite;
+    }
+    @keyframes spin-border {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+
+    /* ─── CARD ─── */
+    .card {
+      width: 100%;
+      background: var(--surface);
+      border-radius: 24px;
+      padding: 36px;
+      box-shadow:
+        0 20px 60px rgba(0,0,0,0.6),
+        0 0 80px rgba(37,211,102,0.05);
+      position: relative;
+    }
+
+    /* ─── DUAL FIELD GRID ─── */
+    .fields-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 22px;
+      margin-bottom: 22px;
+    }
+    @media (max-width: 800px) {
+      .fields-grid { grid-template-columns: 1fr; }
+      .card { padding: 24px; }
+    }
+
+    .field-group { display: flex; flex-direction: column; }
+
+    label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--green-bright);
+      margin-bottom: 10px;
+    }
+    label svg { opacity: 0.8; }
+    label .count {
+      margin-left: auto;
+      font-weight: 500;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      letter-spacing: 0.4px;
+      text-transform: none;
+    }
+    label .count.live { color: var(--green-bright); }
+
+    textarea {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 18px;
+      font-size: 0.95rem;
+      font-family: 'Inter', sans-serif;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
+      resize: vertical;
+      min-height: 220px;
+      line-height: 1.6;
+    }
+    textarea::placeholder {
+      color: var(--text-muted);
+      font-size: 0.88rem;
+    }
+    textarea:focus {
+      border-color: var(--green);
+      background: var(--surface3);
+      box-shadow: 0 0 0 3px rgba(37,211,102,0.12), 0 0 20px rgba(37,211,102,0.08);
+    }
+
+    /* ─── BUTTON GENERATE ─── */
+    .btn-generate {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      font-family: 'Inter', sans-serif;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.15s, box-shadow 0.25s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    .btn-generate::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+    .btn-generate:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(37,211,102,0.5), 0 0 60px rgba(37,211,102,0.2);
+    }
+    .btn-generate:hover::after { opacity: 1; }
+    .btn-generate:active { transform: translateY(0); }
+
+    /* ─── DIVIDER ─── */
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+      margin: 28px 0;
+    }
+
+    /* ─── HELPER (Como pegar os números) ─── */
+    .helper {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      margin-bottom: 22px;
+      overflow: hidden;
+      transition: border-color .25s, box-shadow .25s;
+    }
+    .helper:hover { border-color: rgba(37,211,102,0.35); }
+    .helper-header {
+      width: 100%;
+      background: none;
+      border: 0;
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      text-align: left;
+    }
+    .helper-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 0 18px rgba(37,211,102,0.35);
+      color: #fff;
+    }
+    .helper-title {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .helper-title strong {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--green-bright);
+      letter-spacing: 0.2px;
+    }
+    .helper-title small {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+    .helper-chevron {
+      transition: transform .25s;
+      color: var(--green);
+      flex-shrink: 0;
+    }
+    .helper.open .helper-chevron { transform: rotate(180deg); }
+
+    .helper-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height .35s ease;
+    }
+    .helper.open .helper-body { max-height: 1400px; }
+    .helper-body-inner {
+      padding: 4px 22px 22px;
+      border-top: 1px solid var(--border);
+      padding-top: 18px;
+    }
+
+    .steps {
+      list-style: none;
+      counter-reset: step;
+      margin-bottom: 18px;
+    }
+    .steps li {
+      counter-increment: step;
+      position: relative;
+      padding: 10px 0 10px 44px;
+      font-size: 0.92rem;
+      line-height: 1.55;
+      color: var(--text);
+      border-bottom: 1px solid var(--border-soft);
+    }
+    .steps li:last-child { border-bottom: none; }
+    .steps li::before {
+      content: counter(step);
+      position: absolute;
+      left: 0;
+      top: 8px;
+      width: 30px;
+      height: 30px;
+      background: rgba(37,211,102,0.12);
+      color: var(--green-bright);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.82rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .steps li b {
+      color: var(--green-bright);
+      font-weight: 600;
+    }
+    .steps li code {
+      background: var(--surface3);
+      color: var(--green-bright);
+      padding: 1px 7px;
+      border-radius: 5px;
+      font-size: 0.82rem;
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+    }
+
+    .code-wrapper {
+      position: relative;
+      background: #000;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px 14px 16px;
+      margin-top: 10px;
+    }
+    .code-wrapper pre {
+      max-height: 260px;
+      overflow: auto;
+      color: var(--green-bright);
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 0.78rem;
+      line-height: 1.55;
+      white-space: pre;
+      margin-right: 70px;
+    }
+    .code-wrapper pre::-webkit-scrollbar { width: 6px; height: 6px; }
+    .code-wrapper pre::-webkit-scrollbar-thumb {
+      background: rgba(37,211,102,0.3);
+      border-radius: 4px;
+    }
+    .btn-copy-code {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(37,211,102,0.12);
+      color: var(--green-bright);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-copy-code:hover {
+      background: rgba(37,211,102,0.22);
+      border-color: var(--green);
+      box-shadow: 0 0 12px rgba(37,211,102,0.25);
+    }
+
+    .helper-warning {
+      margin-top: 14px;
+      padding: 11px 14px;
+      background: rgba(255,180,0,0.07);
+      border: 1px solid rgba(255,180,0,0.2);
+      border-radius: 8px;
+      font-size: 0.82rem;
+      color: #ffb400;
+      line-height: 1.5;
+    }
+    .helper-warning strong { font-weight: 700; }
+
+    /* ─── RESULT ─── */
+    .result-box {
+      display: none;
+      animation: slideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(20px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .result-box.visible { display: block; }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 900px) {
+      .stats-row { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 540px) {
+      .stats-row { grid-template-columns: repeat(2, 1fr); }
+    }
+    .stat-val.amber {
+      color: #ffb400;
+      text-shadow: 0 0 14px rgba(255,180,0,0.3);
+    }
+    .stat-val.blue {
+      color: #58a6ff;
+      text-shadow: 0 0 14px rgba(88,166,255,0.3);
+    }
+    .stat-val .pct {
+      font-size: 1.1rem;
+      font-weight: 700;
+      opacity: 0.7;
+      margin-left: 2px;
+    }
+    .stat {
+      padding: 14px 10px;
+    }
+    .stat-val {
+      font-size: 1.55rem;
+    }
+    .stat-label {
+      font-size: 0.66rem;
+      line-height: 1.25;
+    }
+    .stat {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 12px;
+      text-align: center;
+    }
+    .stat-val {
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .stat-val.green {
+      color: var(--green-bright);
+      text-shadow: 0 0 14px rgba(46,255,123,0.35);
+    }
+    .stat-val.red {
+      color: var(--red);
+      text-shadow: 0 0 14px var(--red-glow);
+    }
+    .stat-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* ─── TABS ─── */
+    .result-tabs {
+      display: flex;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 5px;
+      margin-bottom: 16px;
+      gap: 5px;
+    }
+    .result-tab {
+      flex: 1;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.88rem;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background .2s, color .2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .result-tab .badge {
+      background: var(--surface3);
+      color: var(--text);
+      border-radius: 20px;
+      padding: 2px 9px;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+    .result-tab.active.missing {
+      background: rgba(255,93,108,0.1);
+      color: var(--red);
+      box-shadow: 0 0 0 1px rgba(255,93,108,0.25);
+    }
+    .result-tab.active.missing .badge {
+      background: rgba(255,93,108,0.2);
+      color: var(--red);
+    }
+    .result-tab.active.present {
+      background: rgba(37,211,102,0.1);
+      color: var(--green-bright);
+      box-shadow: 0 0 0 1px var(--border);
+    }
+    .result-tab.active.present .badge {
+      background: rgba(37,211,102,0.2);
+      color: var(--green-bright);
+    }
+    .result-tab.active.extra {
+      background: rgba(88,166,255,0.1);
+      color: #58a6ff;
+      box-shadow: 0 0 0 1px rgba(88,166,255,0.3);
+    }
+    .result-tab.active.extra .badge {
+      background: rgba(88,166,255,0.2);
+      color: #58a6ff;
+    }
+    .result-item.extra .number {
+      color: #58a6ff;
+    }
+
+    /* ─── ACTION BUTTONS ─── */
+    .actions-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .btn-action {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 11px 16px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: rgba(37,211,102,0.07);
+      color: var(--green-bright);
+      font-size: 0.86rem;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-action:hover {
+      background: rgba(37,211,102,0.18);
+      border-color: var(--green);
+      box-shadow: 0 0 18px rgba(37,211,102,0.2);
+      transform: translateY(-1px);
+    }
+    .btn-action svg { flex-shrink: 0; }
+
+    /* ─── RESULT LIST ─── */
+    .result-list {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      max-height: 460px;
+      overflow-y: auto;
+    }
+    .result-list::-webkit-scrollbar { width: 6px; }
+    .result-list::-webkit-scrollbar-track { background: transparent; }
+    .result-list::-webkit-scrollbar-thumb {
+      background: rgba(37,211,102,0.25);
+      border-radius: 4px;
+    }
+    .result-list::-webkit-scrollbar-thumb:hover { background: var(--green); }
+
+    .result-item {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-soft);
+      gap: 12px;
+      transition: background 0.15s;
+    }
+    .result-item:last-child { border-bottom: none; }
+    .result-item:hover { background: rgba(37,211,102,0.04); }
+    .result-item .idx {
+      color: var(--text-muted);
+      font-size: 0.72rem;
+      font-weight: 600;
+      min-width: 28px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .result-item .number {
+      color: var(--text);
+      font-weight: 600;
+      flex: 1;
+      font-size: 0.95rem;
+      letter-spacing: 0.2px;
+    }
+    .result-item.missing .number {
+      color: var(--red);
+      text-shadow: 0 0 8px rgba(255,93,108,0.2);
+    }
+    .result-item .match-tag {
+      font-size: 0.68rem;
+      background: rgba(88,166,255,0.12);
+      color: #58a6ff;
+      border: 1px solid rgba(88,166,255,0.25);
+      border-radius: 6px;
+      padding: 2px 7px;
+      white-space: nowrap;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+    .result-item .match-tag.collision {
+      background: rgba(255,180,0,0.12);
+      color: var(--amber);
+      border-color: rgba(255,180,0,0.3);
+    }
+    .copy-btn {
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface3);
+      color: var(--green);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .copy-btn:hover {
+      background: rgba(37,211,102,0.15);
+      border-color: var(--green);
+      box-shadow: 0 0 12px rgba(37,211,102,0.25);
+      transform: scale(1.06);
+    }
+
+    /* ─── EMPTY ─── */
+    .empty-state {
+      padding: 60px 20px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+    .empty-state svg {
+      width: 56px;
+      height: 56px;
+      opacity: 0.25;
+      margin-bottom: 16px;
+    }
+    .empty-state p { font-size: 0.96rem; margin-bottom: 4px; }
+    .empty-state small { font-size: 0.82rem; opacity: 0.8; }
+
+    /* ─── TOAST ─── */
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--green-dark);
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 50px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5), 0 0 20px rgba(37,211,102,0.4);
+      transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 999;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ─── FOOTER ─── */
+    .footer {
+      margin-top: 32px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+    .footer span { color: var(--green); }
+
+    @media (max-width: 520px) {
+      .logo-text { font-size: 1.6rem; }
+      .stat-val { font-size: 1.4rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="bg-canvas"></canvas>
+  <div class="floating-icons" id="floatingIcons"></div>
+
+  <div class="wrapper">
+
+    <div class="header">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <path d="M16 2C8.268 2 2 8.268 2 16c0 2.49.647 4.83 1.776 6.864L2 30l7.312-1.744A13.93 13.93 0 0016 30c7.732 0 14-6.268 14-14S23.732 2 16 2z" fill="white"/>
+            <path d="M22.2 19.4c-.3-.15-1.77-.87-2.04-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.95 1.17-.17.2-.35.22-.65.07a8.18 8.18 0 01-2.4-1.48 9.02 9.02 0 01-1.66-2.07c-.17-.3-.02-.46.13-.6.13-.13.3-.35.45-.52.15-.18.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51-.17-.01-.37-.01-.57-.01-.2 0-.52.07-.8.37-.27.3-1.05 1.02-1.05 2.5s1.07 2.9 1.22 3.1c.15.2 2.1 3.2 5.09 4.49.71.31 1.27.49 1.7.63.72.23 1.37.2 1.89.12.58-.09 1.77-.72 2.02-1.42.25-.7.25-1.3.17-1.42-.07-.12-.27-.2-.57-.35z" fill="#25D366"/>
+          </svg>
+        </div>
+        <div class="logo-text">Confere<span>Grupo</span></div>
+      </div>
+      <p class="tagline">Descubra quem ainda não entrou no seu grupo do WhatsApp</p>
+    </div>
+
+    <div class="card-wrapper">
+      <div class="card">
+
+        <div class="fields-grid">
+          <div class="field-group">
+            <label>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+              Lista Completa
+              <span class="count" id="count-full">0 números</span>
+            </label>
+            <textarea id="full-list" placeholder="Cole aqui a lista completa de números…&#10;Ex:&#10;(11) 98765-4321&#10;11987654322&#10;+55 11 98765 4323"></textarea>
+          </div>
+
+          <div class="field-group">
+            <label>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+              Números no Grupo
+              <span class="count" id="count-group">0 números</span>
+            </label>
+            <textarea id="group-list" placeholder="Cole aqui os números que JÁ estão no grupo…&#10;Ex:&#10;(11) 98765-4321&#10;+55 11 98765-4322"></textarea>
+          </div>
+        </div>
+
+        <div class="helper" id="helper">
+          <button class="helper-header" onclick="document.getElementById('helper').classList.toggle('open')">
+            <div class="helper-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <div class="helper-title">
+              <strong>Como pegar os números do grupo?</strong>
+              <small>Script pronto pra rodar no WhatsApp Web — clique para abrir</small>
+            </div>
+            <svg class="helper-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="helper-body">
+            <div class="helper-body-inner">
+              <ol class="steps">
+                <li>Abra o grupo no <b>WhatsApp Web</b> (web.whatsapp.com).</li>
+                <li>Clique no <b>nome do grupo</b> para abrir o painel à direita.</li>
+                <li>Role até <b>"Membros do grupo"</b> e clique no ícone da <b>lupa</b> para abrir "Pesquisar membros".</li>
+                <li><b>Clique uma vez</b> em cima de qualquer membro da lista — só pra dar foco no painel.</li>
+                <li>Aperte <code>F12</code> para abrir o <b>DevTools</b> e vá na aba <b>Console</b>.</li>
+                <li>Cole o código abaixo e dê <code>Enter</code>. Espere ele rolar até o fim.</li>
+                <li>Clique em <b>"Copiar"</b> no popup que aparecer e cole no campo <b>"Números no Grupo"</b> aqui em cima.</li>
+              </ol>
+
+              <div class="code-wrapper">
+                <button class="btn-copy-code" onclick="copyHelperCode(this)">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                  <span>Copiar código</span>
+                </button>
+<pre id="helper-code">(async () =&gt; {
+  let list = document.activeElement;
+  while (list &amp;&amp; list !== document.body) {
+    if (list.scrollHeight &gt; list.clientHeight + 30 &amp;&amp; list.clientHeight &gt; 150) break;
+    list = list.parentElement;
+  }
+  if (!list || list === document.body) {
+    return alert('Clique 1x na lista de membros (em qualquer membro) e rode de novo SEM fechar o painel.');
+  }
+  list.scrollTop = 0;
+  const numbers = new Set();
+  let stable = 0, lastSize = 0, loops = 0;
+  while (stable &lt; 6 &amp;&amp; loops &lt; 400) {
+    const matches = (list.innerText || '').match(/\+?\s*55[\s\d().-]{10,}/g) || [];
+    matches.forEach(m =&gt; numbers.add(m.replace(/\s+/g,' ').trim()));
+    list.scrollTop += list.clientHeight * 0.8;
+    await new Promise(r =&gt; setTimeout(r, 400));
+    if (numbers.size === lastSize) stable++; else { stable = 0; lastSize = numbers.size; }
+    if (list.scrollTop + list.clientHeight &gt;= list.scrollHeight - 5) stable++;
+    loops++;
+  }
+  const out = [...numbers].join('\n');
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:99999;display:flex;align-items:center;justify-content:center;padding:40px;';
+  overlay.innerHTML = `&lt;div style="background:#111;border:2px solid #25D366;border-radius:12px;padding:20px;max-width:600px;width:100%;color:#fff;font-family:sans-serif;"&gt;&lt;div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"&gt;&lt;strong style="color:#25D366"&gt;${numbers.size} números&lt;/strong&gt;&lt;button id="x" style="background:#25D366;color:#000;border:0;padding:6px 14px;border-radius:6px;font-weight:700;cursor:pointer;"&gt;Fechar&lt;/button&gt;&lt;/div&gt;&lt;textarea id="t" style="width:100%;height:400px;background:#000;color:#25D366;border:1px solid #333;border-radius:8px;padding:10px;font-family:monospace;font-size:12px;"&gt;${out}&lt;/textarea&gt;&lt;button id="c" style="margin-top:10px;background:#25D366;color:#000;border:0;padding:10px 20px;border-radius:8px;font-weight:700;cursor:pointer;width:100%;"&gt;Copiar&lt;/button&gt;&lt;/div&gt;`;
+  document.body.appendChild(overlay);
+  x.onclick = () =&gt; overlay.remove();
+  c.onclick = () =&gt; { t.select(); document.execCommand('copy'); c.textContent='✓'; };
+})();</pre>
+              </div>
+
+              <div class="helper-warning">
+                <strong>⚠ Atenção:</strong> o WhatsApp Web só mostra o número de quem <b>não</b> está salvo nos seus contatos. Para contatos salvos aparece só o nome — esses precisam ser adicionados manualmente na lista do grupo.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn-generate" onclick="compare()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+          Comparar Listas
+        </button>
+
+        <div class="result-box" id="resultBox">
+          <div class="divider"></div>
+
+          <div class="stats-row">
+            <div class="stat">
+              <div class="stat-val" id="stat-total">0</div>
+              <div class="stat-label">Lista Total</div>
+            </div>
+            <div class="stat">
+              <div class="stat-val green" id="stat-present">0</div>
+              <div class="stat-label">Leads no Grupo</div>
+            </div>
+            <div class="stat">
+              <div class="stat-val blue" id="stat-extra">0</div>
+              <div class="stat-label">No Grupo, Fora da Lista</div>
+            </div>
+            <div class="stat">
+              <div class="stat-val red" id="stat-missing">0</div>
+              <div class="stat-label">Faltam Entrar</div>
+            </div>
+            <div class="stat">
+              <div class="stat-val amber" id="stat-percent">0<span class="pct">%</span></div>
+              <div class="stat-label">Taxa de Entrada</div>
+            </div>
+          </div>
+
+          <div class="result-tabs">
+            <button class="result-tab active missing" id="tab-missing" onclick="switchView('missing')">
+              Faltam entrar <span class="badge" id="badge-missing">0</span>
+            </button>
+            <button class="result-tab present" id="tab-present" onclick="switchView('present')">
+              Já no grupo <span class="badge" id="badge-present">0</span>
+            </button>
+            <button class="result-tab extra" id="tab-extra" onclick="switchView('extra')">
+              No grupo, fora da lista <span class="badge" id="badge-extra">0</span>
+            </button>
+          </div>
+
+          <div class="actions-row">
+            <button class="btn-action" onclick="copyAll()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+              Copiar todos
+            </button>
+            <button class="btn-action" onclick="copyFormatted()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              Copiar formatado
+            </button>
+            <button class="btn-action" onclick="downloadCsv()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Baixar CSV
+            </button>
+          </div>
+
+          <div class="result-list" id="list-container"></div>
+        </div>
+
+        <div id="empty" class="empty-state">
+          <svg fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <p>Cole as duas listas acima e clique em <strong>Comparar Listas</strong></p>
+          <small>Vou te mostrar exatamente quem está faltando entrar no grupo</small>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="footer">
+      Feito com <span>♥</span> para WhatsApp Marketing
+    </div>
+
+  </div>
+
+  <div class="toast" id="toast">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    <span id="toast-msg">Copiado!</span>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let state = { missing: [], present: [], extra: [], view: 'missing' };
+
+    /**
+     * Normaliza um telefone para comparação:
+     * - tira tudo que não é dígito
+     * - tira o DDI 55 quando presente (Brasil)
+     * - remove o '9' extra de celular para equiparar números antigos vs novos
+     */
+    function normalizeNumber(raw) {
+      if (!raw) return '';
+      let digits = String(raw).replace(/\D/g, '');
+      if (!digits) return '';
+      if (digits.length > 11 && digits.startsWith('55')) digits = digits.slice(2);
+      if (digits.length === 11 && digits[2] === '9') digits = digits.slice(0, 2) + digits.slice(3);
+      return digits;
+    }
+
+    // Double-check: comparação por últimos 7 dígitos como fallback.
+    const TAIL_LEN = 7;
+    function tailOf(normalized) {
+      if (!normalized) return '';
+      return normalized.length >= TAIL_LEN ? normalized.slice(-TAIL_LEN) : normalized;
+    }
+
+    function parseList(text) {
+      if (!text) return [];
+      const tokens = text.split(/[\n,;\t]+/);
+      const out = [];
+      const seen = new Set();
+      for (const t of tokens) {
+        const orig = t.trim();
+        if (!orig) continue;
+        const norm = normalizeNumber(orig);
+        if (!norm) continue;
+        if (seen.has(norm)) continue;
+        seen.add(norm);
+        out.push({ original: orig, normalized: norm, tail: tailOf(norm) });
+      }
+      return out;
+    }
+
+    function updateCounts() {
+      const fullCount = parseList($('full-list').value).length;
+      const groupCount = parseList($('group-list').value).length;
+      const fullEl = $('count-full');
+      const groupEl = $('count-group');
+      fullEl.textContent  = `${fullCount} ${fullCount === 1 ? 'número' : 'números'}`;
+      groupEl.textContent = `${groupCount} ${groupCount === 1 ? 'número' : 'números'}`;
+      fullEl.classList.toggle('live', fullCount > 0);
+      groupEl.classList.toggle('live', groupCount > 0);
+    }
+
+    $('full-list').addEventListener('input', updateCounts);
+    $('group-list').addEventListener('input', updateCounts);
+
+    function compare() {
+      const full = parseList($('full-list').value);
+      const group = parseList($('group-list').value);
+
+      if (!full.length) { shake('full-list'); showToast('Cole a lista completa primeiro'); return; }
+      if (!group.length) { shake('group-list'); showToast('Cole os números do grupo primeiro'); return; }
+
+      // Match 1 — número normalizado completo (estrito)
+      const groupNorm = new Set(group.map(g => g.normalized));
+      const fullNorm  = new Set(full.map(p => p.normalized));
+
+      // Match 2 — últimos 7 dígitos (fallback). Se mais de um casar, sinaliza colisão.
+      const groupTailCount = new Map();
+      for (const g of group) groupTailCount.set(g.tail, (groupTailCount.get(g.tail) || 0) + 1);
+      const fullTailCount = new Map();
+      for (const p of full) fullTailCount.set(p.tail, (fullTailCount.get(p.tail) || 0) + 1);
+
+      // Itera a lista total: cada item ou está presente no grupo ou está faltando.
+      const missing = [];
+      const present = [];
+      for (const p of full) {
+        if (groupNorm.has(p.normalized)) {
+          present.push({ ...p, matchType: 'exact' });
+          continue;
+        }
+        const hits = groupTailCount.get(p.tail) || 0;
+        if (hits >= 1) {
+          present.push({ ...p, matchType: hits > 1 ? 'tail-collision' : 'tail' });
+          continue;
+        }
+        missing.push({ ...p, matchType: 'none' });
+      }
+
+      // Itera a lista do grupo: o que NÃO casa com a lista total é "extra"
+      // (gente no grupo que não está nos seus leads).
+      const extra = [];
+      for (const g of group) {
+        if (fullNorm.has(g.normalized)) continue;
+        if ((fullTailCount.get(g.tail) || 0) >= 1) continue;
+        extra.push({ ...g, matchType: 'none' });
+      }
+
+      state.missing = missing;
+      state.present = present;
+      state.extra   = extra;
+      state.view = 'missing';
+
+      $('stat-total').textContent    = full.length;
+      $('stat-present').textContent  = present.length;
+      $('stat-extra').textContent    = extra.length;
+      $('stat-missing').textContent  = missing.length;
+      $('badge-missing').textContent = missing.length;
+      $('badge-present').textContent = present.length;
+      $('badge-extra').textContent   = extra.length;
+
+      // Taxa de entrada = total de pessoas no grupo / total da lista
+      // Usa group.length (todos do grupo, incluindo os que não estão na lista)
+      const pct = full.length === 0 ? 0 : (group.length / full.length) * 100;
+      const pctText = pct === Math.floor(pct) ? pct.toFixed(0) : pct.toFixed(1);
+      $('stat-percent').innerHTML = `${pctText}<span class="pct">%</span>`;
+
+      $('empty').style.display = 'none';
+      const box = $('resultBox');
+      box.classList.remove('visible');
+      void box.offsetWidth;
+      box.classList.add('visible');
+
+      setActiveTab('missing');
+      renderList();
+    }
+
+    function setActiveTab(view) {
+      state.view = view;
+      $('tab-missing').classList.toggle('active', view === 'missing');
+      $('tab-present').classList.toggle('active', view === 'present');
+      $('tab-extra').classList.toggle('active',   view === 'extra');
+    }
+
+    function switchView(view) {
+      setActiveTab(view);
+      renderList();
+    }
+
+    function currentList() {
+      if (state.view === 'missing') return state.missing;
+      if (state.view === 'extra')   return state.extra;
+      return state.present;
+    }
+
+    function renderList() {
+      const list = currentList();
+      const container = $('list-container');
+      if (!list.length) {
+        const msg = state.view === 'missing' ? 'Todo mundo já entrou no grupo! 🎉'
+                  : state.view === 'extra'   ? 'Todos os membros do grupo estão na sua lista.'
+                  : 'Ninguém da lista está no grupo ainda.';
+        container.innerHTML = `<div class="empty-state" style="padding:36px 20px"><p>${msg}</p></div>`;
+        return;
+      }
+      const cls = state.view === 'missing' ? 'missing'
+                : state.view === 'extra'   ? 'extra'
+                : 'present';
+      container.innerHTML = list.map((item, i) => {
+        let tag = '';
+        if (item.matchType === 'tail') {
+          tag = `<span class="match-tag" title="Match aproximado pelos últimos ${TAIL_LEN} dígitos">~ últimos ${TAIL_LEN}</span>`;
+        } else if (item.matchType === 'tail-collision') {
+          tag = `<span class="match-tag collision" title="Mais de um número no grupo termina com esses ${TAIL_LEN} dígitos — confira manualmente">⚠ colisão</span>`;
+        }
+        return `
+          <div class="result-item ${cls}">
+            <span class="idx">${String(i + 1).padStart(2, '0')}</span>
+            <span class="number">${escapeHtml(item.original)}</span>
+            ${tag}
+            <button class="copy-btn" onclick="copyOne('${escapeAttr(item.original)}')" title="Copiar">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function copyOne(value) {
+      navigator.clipboard.writeText(value).then(() => showToast('Número copiado'));
+    }
+    function copyAll() {
+      const list = currentList();
+      if (!list.length) return showToast('Nada para copiar');
+      const text = list.map(i => i.original).join('\n');
+      navigator.clipboard.writeText(text).then(() => {
+        showToast(`${list.length} ${list.length === 1 ? 'número copiado' : 'números copiados'}`);
+      });
+    }
+    function copyFormatted() {
+      const list = currentList();
+      if (!list.length) return showToast('Nada para copiar');
+      const header = state.view === 'missing' ? `Pessoas que ainda não entraram no grupo (${list.length}):`
+                   : state.view === 'extra'   ? `Pessoas no grupo que não estão na lista (${list.length}):`
+                   : `Pessoas já no grupo (${list.length}):`;
+      const text = header + '\n\n' + list.map((i, n) => `${n + 1}. ${i.original}`).join('\n');
+      navigator.clipboard.writeText(text).then(() => showToast('Lista formatada copiada'));
+    }
+    function downloadCsv() {
+      const list = currentList();
+      if (!list.length) return showToast('Nada para baixar');
+      const rows = [['#', 'Numero']].concat(list.map((i, n) => [n + 1, i.original]));
+      const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = state.view === 'missing' ? 'faltando-entrar.csv'
+                 : state.view === 'extra'   ? 'no-grupo-fora-da-lista.csv'
+                 : 'ja-no-grupo.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function escapeAttr(s) {
+      return String(s).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
+    function shake(id) {
+      const el = $(id);
+      el.style.borderColor = '#ff4d4d';
+      el.style.boxShadow = '0 0 0 3px rgba(255,77,77,0.2)';
+      el.animate([
+        { transform: 'translateX(0)' },
+        { transform: 'translateX(-6px)' },
+        { transform: 'translateX(6px)' },
+        { transform: 'translateX(-4px)' },
+        { transform: 'translateX(4px)' },
+        { transform: 'translateX(0)' },
+      ], { duration: 300, easing: 'ease-in-out' });
+      setTimeout(() => {
+        el.style.borderColor = '';
+        el.style.boxShadow = '';
+      }, 600);
+      el.focus();
+    }
+
+    function copyHelperCode(btn) {
+      const code = $('helper-code').textContent;
+      navigator.clipboard.writeText(code).then(() => {
+        const span = btn.querySelector('span');
+        const original = span.textContent;
+        span.textContent = '✓ Copiado!';
+        setTimeout(() => { span.textContent = original; }, 1800);
+        showToast('Código copiado — cole no console do WhatsApp Web');
+      });
+    }
+
+    let toastTimer;
+    function showToast(msg) {
+      const t = $('toast');
+      $('toast-msg').textContent = msg || 'Copiado!';
+      t.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        compare();
+      }
+    });
+
+    updateCounts();
+
+    /* ─── FLOATING ICONS ─── */
+    const container = document.getElementById('floatingIcons');
+    const WA_SVG = `
+      <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="40" height="40" rx="10" fill="#25D366"/>
+        <path d="M20 6C12.268 6 6 12.268 6 20c0 2.49.647 4.83 1.776 6.864L6 34l7.312-1.744A13.93 13.93 0 0020 34c7.732 0 14-6.268 14-14S27.732 6 20 6z" fill="white"/>
+        <path d="M26.2 23.4c-.3-.15-1.77-.87-2.04-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.95 1.17-.17.2-.35.22-.65.07a8.18 8.18 0 01-2.4-1.48 9.02 9.02 0 01-1.66-2.07c-.17-.3-.02-.46.13-.6.13-.13.3-.35.45-.52.15-.18.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51-.17-.01-.37-.01-.57-.01-.2 0-.52.07-.8.37-.27.3-1.05 1.02-1.05 2.5s1.07 2.9 1.22 3.1c.15.2 2.1 3.2 5.09 4.49.71.31 1.27.49 1.7.63.72.23 1.37.2 1.89.12.58-.09 1.77-.72 2.02-1.42.25-.7.25-1.3.17-1.42-.07-.12-.27-.2-.57-.35z" fill="#25D366"/>
+      </svg>`;
+
+    function spawnIcon() {
+      const el = document.createElement('div');
+      el.className = 'wa-icon';
+      const size = 18 + Math.random() * 52;
+      const left = Math.random() * 100;
+      const glow = 5 + Math.random() * 12;
+      const glowOpacity = 0.35 + Math.random() * 0.45;
+      const roll = Math.random();
+      let animName, posStyle, duration, delay;
+      if (roll < 0.40) {
+        animName = 'floatUp';
+        duration = 10 + Math.random() * 16;
+        delay = Math.random() * -22;
+        posStyle = `bottom: -80px;`;
+      } else if (roll < 0.75) {
+        animName = 'floatDrift';
+        duration = 14 + Math.random() * 18;
+        delay = Math.random() * -25;
+        const topPos = 15 + Math.random() * 70;
+        posStyle = `top: ${topPos}%;`;
+      } else {
+        animName = 'floatPulse';
+        duration = 8 + Math.random() * 12;
+        delay = Math.random() * -20;
+        const topPos = 5 + Math.random() * 85;
+        posStyle = `top: ${topPos}%;`;
+      }
+      el.style.cssText = `
+        width: ${size}px;
+        height: ${size}px;
+        left: ${left}%;
+        ${posStyle}
+        animation-name: ${animName};
+        animation-duration: ${duration}s;
+        animation-delay: ${delay}s;
+        animation-timing-function: linear;
+        animation-iteration-count: infinite;
+        filter: drop-shadow(0 0 ${glow}px rgba(37,211,102,${glowOpacity}));
+      `;
+      if (animName === 'floatDrift') {
+        const driftX = (Math.random() - 0.5) * 80;
+        el.style.setProperty('--drift-x', `${driftX}px`);
+      }
+      el.innerHTML = WA_SVG;
+      container.appendChild(el);
+      setTimeout(() => el.remove(), (duration + Math.abs(delay)) * 1000 + 3000);
+    }
+    for (let i = 0; i < 22; i++) spawnIcon();
+    setInterval(spawnIcon, 900);
+
+    /* ─── CANVAS GRID ─── */
+    (function() {
+      const canvas = document.getElementById('bg-canvas');
+      const ctx = canvas.getContext('2d');
+      let W, H;
+      function resize() {
+        W = canvas.width  = window.innerWidth;
+        H = canvas.height = window.innerHeight;
+      }
+      resize();
+      window.addEventListener('resize', resize);
+      const dots = [];
+      const NUM = 60;
+      for (let i = 0; i < NUM; i++) {
+        dots.push({
+          x: Math.random(),
+          y: Math.random(),
+          vx: (Math.random() - 0.5) * 0.0004,
+          vy: (Math.random() - 0.5) * 0.0004,
+          r: 1 + Math.random() * 1.5,
+        });
+      }
+      function draw() {
+        ctx.clearRect(0, 0, W, H);
+        for (let i = 0; i < NUM; i++) {
+          for (let j = i + 1; j < NUM; j++) {
+            const dx = (dots[i].x - dots[j].x) * W;
+            const dy = (dots[i].y - dots[j].y) * H;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < 150) {
+              ctx.beginPath();
+              ctx.strokeStyle = `rgba(37,211,102,${0.08 * (1 - dist/150)})`;
+              ctx.lineWidth = 0.5;
+              ctx.moveTo(dots[i].x * W, dots[i].y * H);
+              ctx.lineTo(dots[j].x * W, dots[j].y * H);
+              ctx.stroke();
+            }
+          }
+        }
+        dots.forEach(d => {
+          d.x += d.vx;
+          d.y += d.vy;
+          if (d.x < 0 || d.x > 1) d.vx *= -1;
+          if (d.y < 0 || d.y > 1) d.vy *= -1;
+          ctx.beginPath();
+          ctx.arc(d.x * W, d.y * H, d.r, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(37,211,102,0.25)';
+          ctx.fill();
+        });
+        requestAnimationFrame(draw);
+      }
+      draw();
+    })();
+  </script>
+</body>
+</html>
